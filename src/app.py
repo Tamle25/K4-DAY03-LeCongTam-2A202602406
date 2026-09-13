@@ -1,6 +1,7 @@
 """
 🚀 CORE AGENT APPLICATION (DAY 03: CHATBOT VS REACT AGENT)
 Thực thi so sánh giữa Chatbot Baseline (Cấp 2) và ReAct Agent kết nối MCP Server (Cấp 3).
+Đề tài: Trợ lý Quản lý Thư viện & Tài liệu
 """
 
 import json
@@ -72,13 +73,16 @@ def run_react_agent(user_query: str, provider, mcp_server: MCPAcademicServer) ->
     trace_logs = []
     tools_list = mcp_server.list_tools()
     
+    # Ngữ cảnh tích lũy cho multi-step reasoning
+    accumulated_context = user_query
+    
     while step < MAX_ITERATIONS:
         step += 1
         step_start_time = time.time()
         print(f"\n--- 🔄 Vòng lặp ReAct Loop (Step {step}/{MAX_ITERATIONS}) ---")
         
         # Gọi LLM với Native Tool Calling Specs
-        llm_response = provider.generate_with_tools(user_query, tools_list, system_prompt=REACT_AGENT_SYSTEM_PROMPT)
+        llm_response = provider.generate_with_tools(accumulated_context, tools_list, system_prompt=REACT_AGENT_SYSTEM_PROMPT)
         latency_ms = round((time.time() - step_start_time) * 1000, 2)
         
         thought = llm_response.get("thought", "Đang suy luận...")
@@ -111,8 +115,8 @@ def run_react_agent(user_query: str, provider, mcp_server: MCPAcademicServer) ->
             
             if not obs_data:
                 print(f"👁️ [Observation từ MCP Server]: {{}}")
-                print(f"⚠️ [CHÚ Ý]: MCP Server trả về kết quả rỗng! Học viên cần hoàn thành TODO 2.1 trong 'src/mcp_server.py'.")
-                final_answer = "Chưa thể trả lời chi tiết do chưa nhận được dữ liệu từ MCP Server (hãy hoàn thành TODO 2.1)."
+                print(f"⚠️ [CHÚ Ý]: MCP Server trả về kết quả rỗng!")
+                final_answer = "Chưa thể trả lời chi tiết do chưa nhận được dữ liệu từ MCP Server."
             else:
                 obs_str = json.dumps(obs_data, ensure_ascii=False)
                 print(f"👁️ [Observation từ MCP Server]: {obs_str}")
@@ -121,17 +125,28 @@ def run_react_agent(user_query: str, provider, mcp_server: MCPAcademicServer) ->
                 if obs_data.get("status") == "SUCCESS":
                     if "data" in obs_data:
                         d = obs_data["data"]
-                        final_answer = (
-                            f"Kết quả tra cứu cho sinh viên {obs_data.get('student_id', '')} ({d.get('full_name', '')}): "
-                            f"Lớp {d.get('class', '')}, GPA: {d.get('gpa', '')}, Email: {d.get('email', '')}, "
-                            f"Trạng thái: {d.get('status', '')}, Cố vấn: {d.get('advisor', '')}."
-                        )
+                        if "title" in d:
+                            # Kết quả tra cứu sách
+                            status_text = "Đang được mượn" if d.get("status") == "BORROWED" else "Có sẵn trên kệ"
+                            final_answer = (
+                                f"Thông tin sách {obs_data.get('book_id', '')}: "
+                                f"'{d.get('title', '')}' của {d.get('author', '')}. "
+                                f"Chuyên ngành: {d.get('category', '')}. "
+                                f"Vị trí: {d.get('location', '')}. "
+                                f"Trạng thái: {status_text}."
+                            )
+                            if d.get("status") == "BORROWED":
+                                final_answer += f" Người mượn: {d.get('borrower_id', '')}. Hạn trả: {d.get('due_date', '')}."
+                        else:
+                            final_answer = f"Đã hoàn tất xử lý: {json.dumps(obs_data, ensure_ascii=False)}"
                     elif "message" in obs_data:
                         final_answer = obs_data["message"]
                     else:
                         final_answer = f"Đã hoàn tất xử lý qua MCP Server: {json.dumps(obs_data, ensure_ascii=False)}"
                 elif obs_data.get("status") == "NOT_FOUND":
-                    final_answer = obs_data.get("message", "Không tìm thấy thông tin sinh viên yêu cầu.")
+                    final_answer = obs_data.get("message", "Không tìm thấy thông tin yêu cầu.")
+                elif obs_data.get("status") in ("INVALID_READER", "NOT_BORROWED", "WRONG_BORROWER"):
+                    final_answer = obs_data.get("message", "Không thể thực hiện yêu cầu.")
                 else:
                     final_answer = f"Phản hồi từ công cụ: {json.dumps(obs_data, ensure_ascii=False)}"
             
@@ -145,7 +160,29 @@ def run_react_agent(user_query: str, provider, mcp_server: MCPAcademicServer) ->
                 "latency_ms": latency_ms
             })
             
-            # Kết thúc vòng lặp sau khi hoàn tất Observation và xuất Final Answer
+            # Kiểm tra xem có cần tiếp tục multi-step không
+            # Nếu câu hỏi gốc yêu cầu nhiều bước (ví dụ: "kiểm tra rồi gia hạn")
+            # thì cập nhật context với Observation và tiếp tục vòng lặp
+            query_lower = user_query.lower()
+            has_multi_step_intent = any(kw in query_lower for kw in [
+                "nếu", "rồi", "sau đó", "tiếp tục", "nếu đang", "thì hãy", "kiểm tra rồi gia hạn"
+            ])
+            
+            if has_multi_step_intent and tool_name == "book_query" and obs_data.get("status") == "SUCCESS":
+                # Còn bước tiếp theo cần thực hiện → cập nhật context và tiếp tục
+                data = obs_data.get("data", {})
+                accumulated_context = (
+                    f"Kết quả tra cứu bước trước: Sách {obs_data.get('book_id', '')} "
+                    f"'{data.get('title', '')}' đang ở trạng thái {data.get('status', '')}"
+                )
+                if data.get("borrower_id"):
+                    accumulated_context += f", người mượn: {data['borrower_id']}, hạn trả: {data.get('due_date', '')}"
+                accumulated_context += f". Yêu cầu ban đầu: {user_query}. Hãy thực hiện bước tiếp theo."
+                
+                print(f"🧠 [Thought]: Đã nhận Observation, cần thực hiện thêm bước tiếp theo...")
+                continue  # Tiếp tục vòng lặp ReAct
+            
+            # Kết thúc vòng lặp sau khi hoàn tất Observation
             print(f"🧠 [Thought]: Đã nhận được dữ liệu từ MCP Server. Tổng hợp kết quả phản hồi.")
             print(f"🏁 [Final Answer]: {final_answer}")
             
@@ -164,7 +201,8 @@ def run_react_agent(user_query: str, provider, mcp_server: MCPAcademicServer) ->
 
 if __name__ == "__main__":
     print("==========================================================")
-    print("🏫 VINUNI AI COURSE - DAY 03 LAB: CHATBOT VS REACT AGENT")
+    print("📚 VINUNI LIBRARY ASSISTANT - DAY 03 LAB: CHATBOT VS REACT AGENT")
+    print("   Đề tài: Trợ lý Quản lý Thư viện & Tài liệu")
     print("==========================================================")
     
     provider = get_llm_provider()
@@ -179,13 +217,14 @@ if __name__ == "__main__":
     if "--interactive" in sys.argv:
         print("🎮 [INTERACTIVE MODE] Trò chuyện trực tiếp với ReAct Agent:")
         print("💡 Gợi ý câu hỏi thử nghiệm:")
-        print("   - Câu hỏi chung: 'Quy chế học vụ VinUni yêu cầu bao nhiêu tín chỉ?'")
-        print("   - Tra cứu học vụ: 'Hãy tra cứu thông tin học vụ của sinh viên SV2026001'")
-        print("   - Đặt lịch hẹn: 'Đặt lịch hẹn tư vấn cho SV2026001 vào 14:00 ngày 15/09/2026'")
+        print("   - Câu hỏi chung: 'Thư viện mở cửa mấy giờ và được mượn bao nhiêu sách?'")
+        print("   - Tra cứu sách: 'Tra cứu thông tin sách có mã BK-AI-01'")
+        print("   - Gia hạn sách: 'Tôi là DG001, gia hạn sách BK-AI-01 thêm 7 ngày'")
+        print("   - Multi-step: 'Kiểm tra sách BK-AI-01, nếu đang mượn bởi DG001 thì gia hạn 7 ngày'")
         print("   - Gõ 'exit' hoặc 'quit' để kết thúc phiên trò chuyện.\n")
         while True:
             try:
-                user_input = input("👤 Sinh viên hỏi: ").strip()
+                user_input = input("👤 Bạn đọc hỏi: ").strip()
                 if not user_input or user_input.lower() in ["exit", "quit"]:
                     print("👋 Tạm biệt! Kết thúc phiên trò chuyện.")
                     break
@@ -214,6 +253,7 @@ if __name__ == "__main__":
                 logs = run_react_agent(tc["question"], provider, mcp_server)
                 all_traces.extend(logs)
                 completed_count += 1
+                time.sleep(2)  # Tránh vượt Rate Limit của Gemini API Free Tier
                 
         print(f"\n==================================================")
         print(f"📊 [KẾT QUẢ TEST SUITE]: Đã thực thi {completed_count}/{len(tests)} Test Cases | {todo_count} Test Cases đang chờ điền câu hỏi (TODO)")
@@ -227,7 +267,7 @@ if __name__ == "__main__":
         print("  2. Chạy toàn bộ Test Cases:    python src/app.py --all\n")
         
         sample_query = tests[1]["question"]
-        print(f"--- 🏁 DEMO CHẠY THỬ 1 TEST CASE MẪU (TC02: Tra cứu học vụ) ---")
+        print(f"--- 🏁 DEMO CHẠY THỬ 1 TEST CASE MẪU (TC02: Tra cứu sách) ---")
         logs = run_react_agent(sample_query, provider, mcp_server)
         save_waterfall_trace(logs)
         print("\n💡 Hãy thử ngay lệnh: python src/app.py --interactive để chat trực tiếp!")

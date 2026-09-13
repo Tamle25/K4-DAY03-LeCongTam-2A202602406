@@ -1,6 +1,7 @@
 """
 🔌 MULTI-PROVIDER LLM ADAPTER (Google Gemini, OpenAI & Offline Mock)
 Hỗ trợ Native Tool Calling và chuyển đổi linh hoạt qua biến môi trường LLM_PROVIDER.
+Đề tài: Trợ lý Quản lý Thư viện & Tài liệu
 """
 
 import os
@@ -34,29 +35,86 @@ class MockOfflineProvider(BaseLLMProvider):
     def generate(self, prompt: str, system_prompt: str = "") -> str:
         return f"[Mock Chatbot Response]: Xin chào! Tôi đã nhận được câu hỏi '{prompt}'. (Chế độ Chatbot không có Tool tra cứu dữ liệu thời gian thực)."
 
+    def _extract_id(self, prompt: str, prefix: str) -> str:
+        """Trích xuất ID từ prompt, loại bỏ dấu câu thừa cuối token"""
+        import re
+        for token in prompt.split():
+            cleaned = re.sub(r'[,.\;:!?\'"]+$', '', token)
+            if cleaned.upper().startswith(prefix):
+                return cleaned.upper()
+        return None
+
     def generate_with_tools(self, prompt: str, tools_schema: List[Dict[str, Any]], system_prompt: str = "") -> Dict[str, Any]:
         prompt_lower = prompt.lower()
         
-        # Mô phỏng nhận diện intent gọi Tool
-        if "sv2026001" in prompt_lower and "đặt lịch" in prompt_lower:
+        # Mô phỏng nhận diện intent cho đề tài Thư viện
+        
+        # Ưu tiên 0: Multi-step — nếu câu hỏi vừa có "kiểm tra/tra cứu" VÀ "gia hạn/nếu"
+        # thì gọi book_query TRƯỚC (bước 1 của multi-step ReAct)
+        has_lookup = any(kw in prompt_lower for kw in ["kiểm tra", "tra cứu", "tình trạng", "xem"])
+        has_extend = "gia hạn" in prompt_lower
+        has_condition = any(kw in prompt_lower for kw in ["nếu", "rồi", "sau đó", "thì hãy"])
+        
+        # Phát hiện bước 2 của multi-step: context đã chứa kết quả tra cứu từ bước trước
+        is_step2 = "kết quả tra cứu bước trước" in prompt_lower or "bước tiếp theo" in prompt_lower
+        
+        if is_step2 and has_extend:
+            # Bước 2: Đã có Observation từ book_query, giờ gọi extend_book_loan
+            book_id = self._extract_id(prompt, "BK-") or "BK-AI-01"
+            reader_id = self._extract_id(prompt, "DG") or "DG001"
+            import re
+            days_match = re.search(r'(\d+)\s*ngày', prompt_lower)
+            extend_days = int(days_match.group(1)) if days_match else 7
             return {
                 "type": "tool_call",
-                "tool_name": "schedule_appointment",
-                "arguments": {"student_id": "SV2026001", "datetime_str": "14:00 15/09/2026", "advisor_name": "PGS.TS Nguyễn Văn A"},
-                "thought": "Người dùng yêu cầu đặt lịch hẹn tư vấn cho sinh viên SV2026001. Tôi sẽ gọi tool schedule_appointment."
+                "tool_name": "extend_book_loan",
+                "arguments": {"book_id": book_id, "reader_id": reader_id, "extend_days": extend_days},
+                "thought": f"Bước 2 multi-step: Kết quả tra cứu cho thấy sách đang BORROWED bởi {reader_id}. Tiến hành gia hạn sách {book_id}."
             }
-        elif "sv2026001" in prompt_lower or "tra cứu" in prompt_lower:
+        
+        if has_lookup and has_extend and has_condition:
+            book_id = self._extract_id(prompt, "BK-") or "BK-AI-01"
             return {
                 "type": "tool_call",
-                "tool_name": "academic_query",
-                "arguments": {"student_id": "SV2026001"},
-                "thought": "Người dùng muốn tra cứu thông tin học vụ của sinh viên SV2026001. Tôi sẽ gọi tool academic_query."
+                "tool_name": "book_query",
+                "arguments": {"book_id": book_id},
+                "thought": f"Câu hỏi yêu cầu multi-step: kiểm tra sách trước rồi mới gia hạn. Bước 1: Tra cứu thông tin sách {book_id}."
             }
+        
+        # Ưu tiên 1: Nhận diện yêu cầu gia hạn sách (đơn bước)
+        if has_extend:
+            book_id = self._extract_id(prompt, "BK-") or "BK-AI-01"
+            reader_id = self._extract_id(prompt, "DG") or "DG001"
+            # Trích xuất số ngày gia hạn
+            extend_days = 7
+            import re
+            days_match = re.search(r'(\d+)\s*ngày', prompt_lower)
+            if days_match:
+                extend_days = int(days_match.group(1))
+            
+            return {
+                "type": "tool_call",
+                "tool_name": "extend_book_loan",
+                "arguments": {"book_id": book_id, "reader_id": reader_id, "extend_days": extend_days},
+                "thought": f"Người dùng yêu cầu gia hạn sách {book_id} cho độc giả {reader_id}. Tôi sẽ gọi tool extend_book_loan."
+            }
+        
+        # Ưu tiên 2: Nhận diện yêu cầu tra cứu sách (có mã sách cụ thể)
+        elif any(kw in prompt_lower for kw in ["tra cứu", "tìm", "kiểm tra", "thông tin sách", "tình trạng", "vị trí"]):
+            book_id = self._extract_id(prompt, "BK-") or "BK-AI-01"
+            return {
+                "type": "tool_call",
+                "tool_name": "book_query",
+                "arguments": {"book_id": book_id},
+                "thought": f"Người dùng muốn tra cứu thông tin sách {book_id}. Tôi sẽ gọi tool book_query."
+            }
+        
+        # Ưu tiên 3: Câu hỏi chung -> trả lời trực tiếp
         else:
             return {
                 "type": "text",
-                "content": f"[Mock Agent Response]: Xin chào! Quy chế học vụ VinUni yêu cầu sinh viên tích lũy tối thiểu 120 tín chỉ và duy trì GPA trên 2.0 để tốt nghiệp.",
-                "thought": "Câu hỏi chung về quy chế học vụ, trả lời trực tiếp không cần gọi Tool."
+                "content": "[Mock Agent Response]: Thư viện Đại học VinUni mở cửa từ 7:30 đến 21:00, Thứ Hai đến Thứ Bảy. Mỗi sinh viên được mượn tối đa 5 cuốn sách, thời hạn mượn 14 ngày. Có thể gia hạn tối đa 2 lần, mỗi lần 7 ngày. Sách trả muộn bị phạt 2.000 VNĐ/ngày/cuốn.",
+                "thought": "Câu hỏi chung về nội quy thư viện, trả lời trực tiếp không cần gọi Tool."
             }
 
 
@@ -64,7 +122,7 @@ class GeminiProvider(BaseLLMProvider):
     """Google Gemini Provider (Native Tool Calling với Google GenAI SDK)"""
     def __init__(self, api_key: str = None, model: str = None):
         self.api_key = api_key or os.getenv("GEMINI_API_KEY")
-        self.model_name = model or os.getenv("LLM_MODEL") or "gemini-2.5-flash"
+        self.model_name = model or os.getenv("LLM_MODEL") or "gemini-3.6-flash"
 
     def generate(self, prompt: str, system_prompt: str = "") -> str:
         if not self.api_key or self.api_key == "your_gemini_api_key_here":

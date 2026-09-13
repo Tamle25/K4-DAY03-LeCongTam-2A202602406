@@ -1,29 +1,150 @@
 [
   {
     "step": 1,
-    "query": "Chào bạn, bạn có thể giới thiệu quy chế học vụ cơ bản của Đại học VinUni không?",
+    "query": "Xin chào, bạn có thể cho tôi biết nội quy mượn sách của thư viện không? Sinh viên được mượn tối đa bao nhiêu cuốn và thời hạn mượn là bao lâu?",
     "action_type": "FINAL_ANSWER",
-    "thought": "Câu hỏi chung về quy chế học vụ, trả lời trực tiếp không cần gọi Tool.",
-    "output": "[Mock Agent Response]: Xin chào! Quy chế học vụ VinUni yêu cầu sinh viên tích lũy tối thiểu 120 tín chỉ và duy trì GPA trên 2.0 để tốt nghiệp.",
-    "latency_ms": 2845.93
+    "thought": "Câu hỏi chung về nội quy thư viện, trả lời trực tiếp không cần gọi Tool.",
+    "output": "[Mock Agent Response]: Thư viện Đại học VinUni mở cửa từ 7:30 đến 21:00, Thứ Hai đến Thứ Bảy. Mỗi sinh viên được mượn tối đa 5 cuốn sách, thời hạn mượn 14 ngày. Có thể gia hạn tối đa 2 lần, mỗi lần 7 ngày. Sách trả muộn bị phạt 2.000 VNĐ/ngày/cuốn.",
+    "latency_ms": 1380.24
   },
   {
     "step": 1,
-    "query": "Hãy tra cứu thông tin học vụ của sinh viên SV2026001.",
+    "query": "Hãy tra cứu thông tin cuốn sách có mã BK-AI-01 trong thư viện, cho tôi biết vị trí đặt sách và tình trạng hiện tại.",
     "action_type": "TOOL_EXECUTION",
-    "tool_name": "academic_query",
+    "tool_name": "book_query",
     "arguments": {
-      "student_id": "SV2026001"
+      "book_id": "BK-AI-01"
     },
-    "observation": {},
-    "latency_ms": 799.12
+    "observation": {
+      "status": "SUCCESS",
+      "book_id": "BK-AI-01",
+      "data": {
+        "title": "Trí Tuệ Nhân Tạo - Nền Tảng và Ứng Dụng",
+        "author": "PGS.TS Nguyễn Thanh Tùng",
+        "category": "Công nghệ Thông tin",
+        "location": "Tầng 2 - Khu A - Kệ 03",
+        "status": "BORROWED",
+        "borrower_id": "DG001",
+        "due_date": "20/09/2026"
+      }
+    },
+    "latency_ms": 930.56
   },
   {
     "step": 2,
-    "query": "Hãy tra cứu thông tin học vụ của sinh viên SV2026001.",
+    "query": "Hãy tra cứu thông tin cuốn sách có mã BK-AI-01 trong thư viện, cho tôi biết vị trí đặt sách và tình trạng hiện tại.",
     "action_type": "FINAL_ANSWER",
     "thought": "Tổng hợp kết quả từ MCP Server thành công.",
-    "output": "Chưa thể trả lời chi tiết do chưa nhận được dữ liệu từ MCP Server (hãy hoàn thành TODO 2.1).",
+    "output": "Thông tin sách BK-AI-01: 'Trí Tuệ Nhân Tạo - Nền Tảng và Ứng Dụng' của PGS.TS Nguyễn Thanh Tùng. Chuyên ngành: Công nghệ Thông tin. Vị trí: Tầng 2 - Khu A - Kệ 03. Trạng thái: Đang được mượn. Người mượn: DG001. Hạn trả: 20/09/2026.",
+    "latency_ms": 10.0
+  },
+  {
+    "step": 1,
+    "query": "Tôi là độc giả có mã DG001, tôi muốn gia hạn cuốn sách mã BK-AI-01 thêm 14 ngày.",
+    "action_type": "TOOL_EXECUTION",
+    "tool_name": "extend_book_loan",
+    "arguments": {
+      "book_id": "BK-AI-01",
+      "reader_id": "DG001",
+      "extend_days": 14
+    },
+    "observation": {
+      "status": "SUCCESS",
+      "extension_id": "EXT-BK-AI-01-DG001-14",
+      "book_id": "BK-AI-01",
+      "reader_id": "DG001",
+      "reader_name": "Lê Công Tâm",
+      "book_title": "Trí Tuệ Nhân Tạo - Nền Tảng và Ứng Dụng",
+      "previous_due_date": "20/09/2026",
+      "new_due_date": "04/10/2026",
+      "extended_days": 14,
+      "message": "Gia hạn thành công! Sách 'Trí Tuệ Nhân Tạo - Nền Tảng và Ứng Dụng' cho độc giả Lê Công Tâm (DG001). Hạn trả mới: 04/10/2026 (thêm 14 ngày)."
+    },
+    "latency_ms": 808.12
+  },
+  {
+    "step": 2,
+    "query": "Tôi là độc giả có mã DG001, tôi muốn gia hạn cuốn sách mã BK-AI-01 thêm 14 ngày.",
+    "action_type": "FINAL_ANSWER",
+    "thought": "Tổng hợp kết quả từ MCP Server thành công.",
+    "output": "Gia hạn thành công! Sách 'Trí Tuệ Nhân Tạo - Nền Tảng và Ứng Dụng' cho độc giả Lê Công Tâm (DG001). Hạn trả mới: 04/10/2026 (thêm 14 ngày).",
+    "latency_ms": 10.0
+  },
+  {
+    "step": 1,
+    "query": "Hãy kiểm tra tình trạng cuốn sách mã BK-AI-01, nếu sách đang được mượn bởi độc giả DG001 thì hãy gia hạn thêm 7 ngày giúp tôi.",
+    "action_type": "TOOL_EXECUTION",
+    "tool_name": "book_query",
+    "arguments": {
+      "book_id": "BK-AI-01"
+    },
+    "observation": {
+      "status": "SUCCESS",
+      "book_id": "BK-AI-01",
+      "data": {
+        "title": "Trí Tuệ Nhân Tạo - Nền Tảng và Ứng Dụng",
+        "author": "PGS.TS Nguyễn Thanh Tùng",
+        "category": "Công nghệ Thông tin",
+        "location": "Tầng 2 - Khu A - Kệ 03",
+        "status": "BORROWED",
+        "borrower_id": "DG001",
+        "due_date": "04/10/2026"
+      }
+    },
+    "latency_ms": 961.48
+  },
+  {
+    "step": 2,
+    "query": "Hãy kiểm tra tình trạng cuốn sách mã BK-AI-01, nếu sách đang được mượn bởi độc giả DG001 thì hãy gia hạn thêm 7 ngày giúp tôi.",
+    "action_type": "TOOL_EXECUTION",
+    "tool_name": "extend_book_loan",
+    "arguments": {
+      "book_id": "BK-AI-01",
+      "reader_id": "DG001",
+      "extend_days": 7
+    },
+    "observation": {
+      "status": "SUCCESS",
+      "extension_id": "EXT-BK-AI-01-DG001-7",
+      "book_id": "BK-AI-01",
+      "reader_id": "DG001",
+      "reader_name": "Lê Công Tâm",
+      "book_title": "Trí Tuệ Nhân Tạo - Nền Tảng và Ứng Dụng",
+      "previous_due_date": "04/10/2026",
+      "new_due_date": "11/10/2026",
+      "extended_days": 7,
+      "message": "Gia hạn thành công! Sách 'Trí Tuệ Nhân Tạo - Nền Tảng và Ứng Dụng' cho độc giả Lê Công Tâm (DG001). Hạn trả mới: 11/10/2026 (thêm 7 ngày)."
+    },
+    "latency_ms": 1206.02
+  },
+  {
+    "step": 3,
+    "query": "Hãy kiểm tra tình trạng cuốn sách mã BK-AI-01, nếu sách đang được mượn bởi độc giả DG001 thì hãy gia hạn thêm 7 ngày giúp tôi.",
+    "action_type": "FINAL_ANSWER",
+    "thought": "Tổng hợp kết quả từ MCP Server thành công.",
+    "output": "Gia hạn thành công! Sách 'Trí Tuệ Nhân Tạo - Nền Tảng và Ứng Dụng' cho độc giả Lê Công Tâm (DG001). Hạn trả mới: 11/10/2026 (thêm 7 ngày).",
+    "latency_ms": 10.0
+  },
+  {
+    "step": 1,
+    "query": "Tra cứu giúp tôi cuốn sách có mã BK-UNKNOWN-999 trong thư viện.",
+    "action_type": "TOOL_EXECUTION",
+    "tool_name": "book_query",
+    "arguments": {
+      "book_id": "BK-UNKNOWN-999"
+    },
+    "observation": {
+      "status": "NOT_FOUND",
+      "message": "Không tìm thấy sách có mã 'BK-UNKNOWN-999' trong hệ thống thư viện."
+    },
+    "latency_ms": 880.95
+  },
+  {
+    "step": 2,
+    "query": "Tra cứu giúp tôi cuốn sách có mã BK-UNKNOWN-999 trong thư viện.",
+    "action_type": "FINAL_ANSWER",
+    "thought": "Tổng hợp kết quả từ MCP Server thành công.",
+    "output": "Không tìm thấy sách có mã 'BK-UNKNOWN-999' trong hệ thống thư viện.",
     "latency_ms": 10.0
   }
 ]

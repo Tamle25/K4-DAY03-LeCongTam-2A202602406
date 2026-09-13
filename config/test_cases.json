@@ -1,0 +1,37 @@
+[
+  {
+    "id": "TC01",
+    "type": "direct_query",
+    "question": "Xin chào, bạn có thể cho tôi biết nội quy mượn sách của thư viện không? Sinh viên được mượn tối đa bao nhiêu cuốn và thời hạn mượn là bao lâu?",
+    "expected_behavior": "Trợ lý trả lời trực tiếp từ System Prompt về nội quy thư viện, không cần gọi bất kỳ Tool nào.",
+    "complexity": "Low"
+  },
+  {
+    "id": "TC02",
+    "type": "single_tool_query",
+    "question": "Hãy tra cứu thông tin cuốn sách có mã BK-AI-01 trong thư viện, cho tôi biết vị trí đặt sách và tình trạng hiện tại.",
+    "expected_behavior": "Agent nhận diện nhu cầu tra cứu sách, tự động phát sinh Tool Call 'book_query' với tham số book_id='BK-AI-01'.",
+    "complexity": "Medium"
+  },
+  {
+    "id": "TC03",
+    "type": "action_execution",
+    "question": "Tôi là độc giả có mã DG001, tôi muốn gia hạn cuốn sách mã BK-AI-01 thêm 14 ngày.",
+    "expected_behavior": "Agent tự động phát sinh Tool Call 'extend_book_loan' với tham số book_id='BK-AI-01', reader_id='DG001', extend_days=14.",
+    "complexity": "Medium"
+  },
+  {
+    "id": "TC04",
+    "type": "multi_step_reasoning",
+    "question": "Hãy kiểm tra tình trạng cuốn sách mã BK-AI-01, nếu sách đang được mượn bởi độc giả DG001 thì hãy gia hạn thêm 7 ngày giúp tôi.",
+    "expected_behavior": "Agent thực hiện chuỗi suy luận ReAct đa bước: Bước 1 gọi 'book_query' để tra cứu trạng thái sách, nhận Observation xác nhận sách đang BORROWED bởi DG001, sau đó Bước 2 gọi 'extend_book_loan' để gia hạn.",
+    "complexity": "High"
+  },
+  {
+    "id": "TC05",
+    "type": "edge_case_handling",
+    "question": "Tra cứu giúp tôi cuốn sách có mã BK-UNKNOWN-999 trong thư viện.",
+    "expected_behavior": "Agent gọi Tool 'book_query' với book_id='BK-UNKNOWN-999', nhận kết quả NOT_FOUND từ Tool và đưa ra phản hồi lịch sự, chính xác rằng sách không tồn tại trong hệ thống, không bịa đặt dữ liệu.",
+    "complexity": "Medium"
+  }
+]
