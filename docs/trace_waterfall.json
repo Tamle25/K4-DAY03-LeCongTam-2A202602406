@@ -5,7 +5,7 @@
     "action_type": "FINAL_ANSWER",
     "thought": "Câu hỏi chung về nội quy thư viện, trả lời trực tiếp không cần gọi Tool.",
     "output": "[Mock Agent Response]: Thư viện Đại học VinUni mở cửa từ 7:30 đến 21:00, Thứ Hai đến Thứ Bảy. Mỗi sinh viên được mượn tối đa 5 cuốn sách, thời hạn mượn 14 ngày. Có thể gia hạn tối đa 2 lần, mỗi lần 7 ngày. Sách trả muộn bị phạt 2.000 VNĐ/ngày/cuốn.",
-    "latency_ms": 1380.24
+    "latency_ms": 1421.53
   },
   {
     "step": 1,
@@ -28,7 +28,7 @@
         "due_date": "20/09/2026"
       }
     },
-    "latency_ms": 930.56
+    "latency_ms": 720.25
   },
   {
     "step": 2,
@@ -60,7 +60,7 @@
       "extended_days": 14,
       "message": "Gia hạn thành công! Sách 'Trí Tuệ Nhân Tạo - Nền Tảng và Ứng Dụng' cho độc giả Lê Công Tâm (DG001). Hạn trả mới: 04/10/2026 (thêm 14 ngày)."
     },
-    "latency_ms": 808.12
+    "latency_ms": 845.41
   },
   {
     "step": 2,
@@ -91,7 +91,7 @@
         "due_date": "04/10/2026"
       }
     },
-    "latency_ms": 961.48
+    "latency_ms": 1087.32
   },
   {
     "step": 2,
@@ -115,7 +115,7 @@
       "extended_days": 7,
       "message": "Gia hạn thành công! Sách 'Trí Tuệ Nhân Tạo - Nền Tảng và Ứng Dụng' cho độc giả Lê Công Tâm (DG001). Hạn trả mới: 11/10/2026 (thêm 7 ngày)."
     },
-    "latency_ms": 1206.02
+    "latency_ms": 745.89
   },
   {
     "step": 3,
@@ -137,7 +137,7 @@
       "status": "NOT_FOUND",
       "message": "Không tìm thấy sách có mã 'BK-UNKNOWN-999' trong hệ thống thư viện."
     },
-    "latency_ms": 880.95
+    "latency_ms": 708.46
   },
   {
     "step": 2,
